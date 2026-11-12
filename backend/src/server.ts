@@ -24,16 +24,41 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-const app = Fastify({ logger: true });
+const app = Fastify({
+  logger: true,
+  trustProxy: true, // <-- Necesario para leer X-Forwarded-* detrás del proxy de Railway
+});
+
+const port = Number(process.env.PORT ?? 3001);
+
+// Helper para normalizar headers que pueden llegar como string o string[]
+function getHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+// Construye la URL base pública del backend.
+// Prioridad: 1) PUBLIC_BASE_URL (env), 2) headers del proxy, 3) localhost (dev)
+function buildBaseUrl(headers: Record<string, string | string[] | undefined>): string {
+  const explicit = process.env.PUBLIC_BASE_URL;
+  if (explicit) return explicit.replace(/\/$/, '');
+
+  const proto = getHeaderValue(headers['x-forwarded-proto']) ?? 'http';
+  const host =
+    getHeaderValue(headers['x-forwarded-host']) ??
+    getHeaderValue(headers['host']) ??
+    `localhost:${port}`;
+
+  return `${proto}://${host}`;
+}
 
 async function main() {
   await app.register(helmet, { crossOriginResourcePolicy: { policy: "cross-origin" } });
-  
+
   await app.register(cors, {
-    origin: true, 
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
@@ -56,8 +81,9 @@ async function main() {
     const filepath = path.join(uploadsDir, filename);
 
     await pipeline(data.file, fs.createWriteStream(filepath));
-    
-    return { url: `http://localhost:3001/uploads/${filename}` };
+
+    const baseUrl = buildBaseUrl(req.headers);
+    return { url: `${baseUrl}/uploads/${filename}` };
   });
 
   await app.register(authRoutes, { prefix: '/auth' });
@@ -65,9 +91,8 @@ async function main() {
   await app.register(requestsRoutes, { prefix: '/requests' });
   await app.register(notificationsRoutes, { prefix: '/notifications' }); // <-- NUEVO REGISTRO
 
-  const port = Number(process.env.PORT ?? 3001);
-  await app.listen({ port, host: '0.0.0.0' });
-  console.log(`Backend escuchando en http://localhost:${port}`);
+  await app.listen({ port, host: '::' }); // <-- Cambiado de '0.0.0.0' a '::'
+  console.log(`Backend escuchando en el puerto ${port}`);
 }
 
 main().catch((err) => {
