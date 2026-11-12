@@ -1,0 +1,13 @@
+:root {
+  --uees-azul: #074E8C;
+  --uees-amarillo: #FBDA05;
+  
+  /* Colores secundarios para UI (grises, fondos, etc) */
+  --fondo-gris: #f0f4f8;
+  --texto-oscuro: #1e293b;
+  --texto-gris: #64748b;
+  --borde-gris: #cbd5e1;
+  --blanco: #ffffff;
+  --rojo-error: #ef4444;
+  --verde-exito: #16a34a;
+}
