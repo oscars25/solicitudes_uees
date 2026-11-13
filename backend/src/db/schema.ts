@@ -14,7 +14,8 @@ import { relations } from 'drizzle-orm';
 // Enums
 // ---------------------------------------------------------------
 export const userRoleEnum = pgEnum('user_role', [
-  'solicitante',
+  'docente',
+  'coordinador',
   'interno',
   'admin',
 ]);
@@ -34,7 +35,9 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   nombre: text('nombre').notNull(),
   passwordHash: text('password_hash').notNull(),
-  rol: userRoleEnum('rol').notNull().default('solicitante'),
+  rol: userRoleEnum('rol').notNull().default('docente'), 
+  carreraCoordinada: text('carrera_coordinada'), 
+  formularioAsignado: text('formulario_asignado'), // <-- NUEVO CAMPO AGREGADO AQUI
   activo: boolean('activo').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
@@ -133,7 +136,7 @@ export const requestAttachments = pgTable(
 );
 
 // ---------------------------------------------------------------
-// notifications (NUEVA TABLA)
+// notifications
 // ---------------------------------------------------------------
 export const notifications = pgTable(
   'notifications',
@@ -160,7 +163,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   requestsCreados: many(requests, { relationName: 'solicitante' }),
   requestsAsignados: many(requests, { relationName: 'asignado' }),
   historial: many(requestHistory),
-  notifications: many(notifications), // <-- Relacion agregada
+  notifications: many(notifications),
 }));
 
 export const requestsRelations = relations(requests, ({ one, many }) => ({
@@ -203,7 +206,6 @@ export const requestAttachmentsRelations = relations(
   })
 );
 
-// Relaciones de notificaciones
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.userId],

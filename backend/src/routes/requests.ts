@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, inArray, and } from 'drizzle-orm';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
@@ -30,7 +30,6 @@ const changeStatusSchema = z.object({
   comentario: z.string().optional(),
 });
 
-// Valida el payload contra el schemaJson del formulario
 function validarPayload(
   schemaJson: any,
   payload: Record<string, any>
@@ -98,12 +97,17 @@ export default async function requestsRoutes(app: FastifyInstance) {
       return nuevo;
     });
 
-    // NOTIFICACION: Avisar a internos y admins (si no es bypass)
     if (!bypassApproval) {
+      // Notificar solo a los internos que tengan asignado este formulario, y a los admins
       const staff = await db.select().from(users).where(inArray(users.rol, ['interno', 'admin']));
-      if (staff.length > 0) {
+      
+      const internosFiltrados = staff.filter(u => 
+        u.rol === 'admin' || (u.rol === 'interno' && u.formularioAsignado === form.slug)
+      );
+
+      if (internosFiltrados.length > 0) {
         await db.insert(notifications).values(
-          staff.map(u => ({
+          internosFiltrados.map(u => ({
             userId: u.id,
             title: 'Nueva Solicitud Recibida',
             message: `Se ha recibido una nueva solicitud: ${form.titulo}`,
@@ -116,19 +120,55 @@ export default async function requestsRoutes(app: FastifyInstance) {
     return reply.code(201).send(created);
   });
 
-  // GET /requests - listar segun rol
+  // GET /requests - listar segun rol (LOGICA ACTUALIZADA CON JOIN)
   app.get('/', { preHandler: [app.authenticate] }, async (req) => {
     const { rol, id } = req.user;
 
-    if (rol === 'solicitante') {
-      return db
-        .select()
-        .from(requests)
+    // Consulta base con JOIN para traer el nombre y correo del solicitante
+    const baseQuery = db
+      .select({
+        id: requests.id,
+        formDefinitionId: requests.formDefinitionId,
+        solicitanteId: requests.solicitanteId,
+        estado: requests.estado,
+        payload: requests.payload,
+        createdAt: requests.createdAt,
+        updatedAt: requests.updatedAt,
+        pdfUrl: requests.pdfUrl,
+        emailEnviadoAt: requests.emailEnviadoAt,
+        asignadoA: requests.asignadoA,
+        // Datos del JOIN
+        solicitanteNombre: users.nombre,
+        solicitanteEmail: users.email,
+      })
+      .from(requests)
+      .leftJoin(users, eq(requests.solicitanteId, users.id));
+
+    // 1. Docentes y Coordinadores solo ven SUS solicitudes
+    if (rol === 'docente' || rol === 'coordinador' || rol === 'solicitante') {
+      return baseQuery
         .where(eq(requests.solicitanteId, id))
         .orderBy(desc(requests.createdAt));
     }
 
-    return db.select().from(requests).orderBy(desc(requests.createdAt));
+    // 2. Internos solo ven las solicitudes de SU formulario asignado
+    if (rol === 'interno') {
+      const [userInfo] = await db.select().from(users).where(eq(users.id, id));
+      
+      if (userInfo?.formularioAsignado) {
+        const [form] = await db.select().from(formDefinitions).where(eq(formDefinitions.slug, userInfo.formularioAsignado));
+        
+        if (form) {
+          return baseQuery
+            .where(eq(requests.formDefinitionId, form.id))
+            .orderBy(desc(requests.createdAt));
+        }
+      }
+      return []; // Si no tiene formulario asignado, ve vacio
+    }
+
+    // 3. Admin ve TODO
+    return baseQuery.orderBy(desc(requests.createdAt));
   });
 
   // GET /requests/:id - detalle con historial
@@ -141,7 +181,8 @@ export default async function requestsRoutes(app: FastifyInstance) {
       .where(eq(requests.id, id));
     if (!request) return reply.code(404).send({ error: 'No encontrado' });
 
-    if (req.user.rol === 'solicitante' && request.solicitanteId !== req.user.id) {
+    // Validacion extra: Si es docente/coordinador, solo puede ver las suyas
+    if ((req.user.rol === 'docente' || req.user.rol === 'coordinador') && request.solicitanteId !== req.user.id) {
       return reply.code(403).send({ error: 'Sin permisos' });
     }
 
@@ -321,9 +362,14 @@ export default async function requestsRoutes(app: FastifyInstance) {
 
       // NOTIFICACION: Avisar a internos y admins que fue corregida
       const staff = await db.select().from(users).where(inArray(users.rol, ['interno', 'admin']));
-      if (staff.length > 0) {
+      
+      const internosFiltrados = staff.filter(u => 
+        u.rol === 'admin' || (u.rol === 'interno' && u.formularioAsignado === form?.slug)
+      );
+
+      if (internosFiltrados.length > 0) {
         await db.insert(notifications).values(
-          staff.map(u => ({
+          internosFiltrados.map(u => ({
             userId: u.id,
             title: 'Solicitud Corregida',
             message: `El solicitante ha corregido la solicitud de ${form?.titulo}. Requiere revisión de nuevo.`,
@@ -347,6 +393,11 @@ export default async function requestsRoutes(app: FastifyInstance) {
 
       const [request] = await db.select().from(requests).where(eq(requests.id, id));
       if (!request) return reply.code(404).send({ error: 'No encontrado' });
+
+      // NUEVA VALIDACION DE SEGURIDAD: Bloquear descarga si es solicitante y no esta aprobado/finalizado
+      if (req.user.rol === 'solicitante' && request.estado !== 'aprobado' && request.estado !== 'finalizado') {
+        return reply.code(403).send({ error: 'El PDF solo está disponible cuando la solicitud ha sido aprobada o finalizada.' });
+      }
 
       if (req.user.rol === 'solicitante' && request.solicitanteId !== req.user.id) {
         return reply.code(403).send({ error: 'Sin permisos' });

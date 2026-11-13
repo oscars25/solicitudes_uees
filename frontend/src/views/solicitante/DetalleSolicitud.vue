@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { requestsApi } from '../../api/requests';
 import { formsApi } from '../../api/forms';
-import { api } from '../../api/client'; // <-- IMPORTANTE: Importamos api
+import { api } from '../../api/client'; 
 import DynamicForm from '../../components/DynamicForm.vue';
 
 const route = useRoute();
@@ -39,7 +39,6 @@ async function reenviar(payload: Record<string, any>) {
   }
 }
 
-// NUEVA FUNCION: Descargar PDF
 async function descargarPdf() {
   try {
     const response = await api.get(`/requests/${data.value.id}/pdf`, {
@@ -76,22 +75,35 @@ onMounted(cargar);
           <span class="id-badge">#{{ data.id.slice(0, 8) }}</span>
         </div>
         
-        <!-- Fila del estado y boton PDF -->
+        <!-- Fila del estado y boton PDF (El boton solo se muestra si esta aprobado o finalizado) -->
         <div class="status-row">
           <div class="status-info">
             <span class="status-label">Estado actual:</span>
             <span class="status-badge" :class="data.estado">{{ data.estado }}</span>
           </div>
           
-          <button @click="descargarPdf" class="btn-pdf">
+          <button 
+            v-if="data.estado === 'aprobado' || data.estado === 'finalizado'"
+            @click="descargarPdf" 
+            class="btn-pdf"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             Descargar PDF
           </button>
         </div>
 
+        <!-- AVISO VERDE DE APROBACION -->
+        <div v-if="data.estado === 'aprobado'" class="alert-success">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="alert-icon-success"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <div>
+            <h3>¡Tu solicitud ha sido aprobada!</h3>
+            <p>El personal de la DTE ha validado tu solicitud. Ya puedes descargar el documento oficial en formato PDF.</p>
+          </div>
+        </div>
+
         <div class="divider"></div>
         
-        <h3 class="section-title">Historial de la solicitud</h3>
+        <h3 class="section-title">Historial</h3>
         <ul class="timeline">
           <li v-for="h in data.historial" :key="h.id" class="timeline-item">
             <div class="timeline-dot" :class="h.estadoNuevo"></div>
@@ -99,9 +111,17 @@ onMounted(cargar);
               <div class="timeline-header">
                 <span class="time">{{ new Date(h.createdAt).toLocaleString() }}</span>
               </div>
+              
+              <!-- TEXTO DEL HISTORIAL (Diferencia entre Evaluacion y Solicitud) -->
               <div class="timeline-text">
-                La solicitud pasó a estado <strong>{{ h.estadoNuevo }}</strong>
+                <template v-if="formTitle.includes('Evaluación')">
+                  La evaluación ha sido <strong>{{ h.estadoNuevo }}</strong>
+                </template>
+                <template v-else>
+                  La solicitud pasó a estado <strong>{{ h.estadoNuevo }}</strong>
+                </template>
               </div>
+              
               <div v-if="h.comentario" class="timeline-comment">
                 {{ h.comentario }}
               </div>
@@ -206,6 +226,12 @@ onMounted(cargar);
 }
 .btn-pdf:hover { background: #eff6ff; border-color: #074E8C; }
 .btn-pdf svg { width: 1.1rem; height: 1.1rem; }
+
+/* Aviso de Aprobado */
+.alert-success { display: flex; gap: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1.25rem; border-radius: 12px; color: #15803d; margin-bottom: 1.5rem; }
+.alert-icon-success { width: 2rem; height: 2rem; flex-shrink: 0; color: #16a34a; }
+.alert-success h3 { margin: 0 0 0.25rem 0; font-size: 1rem; font-weight: 700; }
+.alert-success p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
 
 .divider { height: 1px; background: #e2e8f0; margin-bottom: 1.5rem; }
 

@@ -30,6 +30,41 @@ async function seed() {
   }
 
   // -----------------------------------------------------------
+  // Crear Usuarios de Prueba (Coordinador y Docente)
+  // -----------------------------------------------------------
+  const testUsers = [
+    {
+      email: 'coordinador@uees.edu.sv',
+      nombre: 'Marisol de Quezada',
+      password: '12345678',
+      rol: 'coordinador' as const,
+      carreraCoordinada: 'Licenciatura en Psicología'
+    },
+    {
+      email: 'docente@uees.edu.sv',
+      nombre: 'Karla Funes',
+      password: '12345678',
+      rol: 'docente' as const,
+      carreraCoordinada: null
+    }
+  ];
+
+  for (const u of testUsers) {
+    const existing = await db.select().from(users).where(eq(users.email, u.email));
+    if (existing.length === 0) {
+      const hash = await bcrypt.hash(u.password, 10);
+      await db.insert(users).values({
+        email: u.email,
+        nombre: u.nombre,
+        passwordHash: hash,
+        rol: u.rol,
+        carreraCoordinada: u.carreraCoordinada,
+      });
+      console.log(`Usuario de prueba creado: ${u.rol} (${u.email})`);
+    }
+  }
+
+  // -----------------------------------------------------------
   // Crear Formularios Iniciales
   // -----------------------------------------------------------
   const formularios = [

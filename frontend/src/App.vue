@@ -29,13 +29,17 @@ async function cargarNotificaciones() {
   }
 }
 
-async function abrirNotificacion(n: any) {
-  if (!n.isRead) {
-    await notificationsApi.markAsRead(n.id);
-    n.isRead = true;
-  }
+// Solo marcamos como leida, la navegacion la hace el router-link
+async function marcarLeida(n: any) {
   mostrarNotificaciones.value = false;
-  router.push(n.link);
+  if (!n.isRead) {
+    try {
+      await notificationsApi.markAsRead(n.id);
+      n.isRead = true;
+    } catch (e) {
+      console.error(e);
+    }
+  }
 }
 
 async function marcarTodasLeidas() {
@@ -76,6 +80,10 @@ function logout() {
         <nav class="nav-links">
           <router-link v-if="auth.rol === 'admin'" to="/admin">Dashboard</router-link>
           <router-link v-if="auth.rol === 'admin'" to="/admin/formularios">Gestionar Formularios</router-link>
+          
+          <!-- NUEVO ENLACE AGREGADO AQUI -->
+          <router-link v-if="auth.rol === 'admin'" to="/admin/usuarios">Usuarios</router-link>
+          
           <router-link v-if="auth.rol === 'interno'" to="/interno">Bandeja de Entrada</router-link>
         </nav>
 
@@ -98,10 +106,13 @@ function logout() {
                 <div v-if="notificaciones.length === 0" class="notif-empty">
                   No tienes notificaciones
                 </div>
-                <div 
+                
+                <!-- CAMBIO AQUI: Usamos router-link en lugar de div -->
+                <router-link 
                   v-for="n in notificaciones" 
                   :key="n.id" 
-                  @click="abrirNotificacion(n)"
+                  :to="n.link"
+                  @click="marcarLeida(n)"
                   class="notif-item"
                   :class="{ 'unread': !n.isRead }"
                 >
@@ -113,7 +124,7 @@ function logout() {
                     <p class="notif-msg">{{ n.message }}</p>
                     <p class="notif-date">{{ new Date(n.createdAt).toLocaleString() }}</p>
                   </div>
-                </div>
+                </router-link>
               </div>
             </div>
           </div>
@@ -187,7 +198,9 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; ba
 
 .notif-list { max-height: 400px; overflow-y: auto; }
 .notif-empty { padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.9rem; }
-.notif-item { display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; }
+
+/* CAMBIO AQUI: Quitamos estilos de texto por defecto para el router-link */
+.notif-item { display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; text-decoration: none; color: inherit; }
 .notif-item:hover { background: #f8fafc; }
 .notif-item.unread { background: #eff6ff; }
 .notif-item.unread:hover { background: #dbeafe; }

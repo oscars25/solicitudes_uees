@@ -146,9 +146,17 @@ onMounted(cargar);
               <div class="timeline-dot" :class="h.estadoNuevo"></div>
               <div class="timeline-content">
                 <div class="timeline-date">{{ new Date(h.createdAt).toLocaleString() }}</div>
+                
+                <!-- TEXTO DEL HISTORIAL (Diferencia entre Evaluacion y Solicitud) -->
                 <div class="timeline-text">
-                  Pasó a <strong>{{ h.estadoNuevo }}</strong>
+                  <template v-if="formTitle.includes('Evaluación')">
+                    La evaluación ha sido <strong>{{ h.estadoNuevo }}</strong>
+                  </template>
+                  <template v-else>
+                    La solicitud pasó a estado <strong>{{ h.estadoNuevo }}</strong>
+                  </template>
                 </div>
+
                 <div v-if="h.comentario" class="timeline-comment">
                   "{{ h.comentario }}"
                 </div>

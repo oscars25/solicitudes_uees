@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { facultades, carrerasPorFacultad, monitoresPorFacultad } from '../utils/catalogs';
 import { api } from '../api/client';
 import arancelesImg from '../assets/temas-arancelarios.png';
@@ -19,6 +19,8 @@ const props = defineProps<{
   };
   initialData?: Record<string, any>;
   disabledFields?: string[];
+  userRol?: string;
+  userCarrera?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -27,6 +29,17 @@ const emit = defineEmits<{
 
 const values = ref<Record<string, any>>({ ...props.initialData });
 const uploading = ref<Record<string, boolean>>({});
+const coordinadoresList = ref<any[]>([]);
+
+// 1. Quitamos la restriccion del rol, ahora siempre carga la lista
+onMounted(async () => {
+  try {
+    const res = await api.get('/users/coordinadores');
+    coordinadoresList.value = res.data;
+  } catch (e) {
+    console.error('Error al cargar lista de coordinadores', e);
+  }
+});
 
 const groups = computed(() => {
   const g = props.schema.fields.map(f => f.group || 'Información');
@@ -55,7 +68,11 @@ function getOptions(field: any) {
 
 function isFieldDisabled(fieldName: string) {
   if (props.disabledFields?.includes(fieldName)) return true;
-  if (fieldName === 'coordinador' && values.value['facultad'] === 'Facultad de Ingeniería') return true;
+  
+  // 2. Si es un campo de coordinador y ya tiene un valor (autocompletado), lo bloqueamos
+  if ((fieldName === 'coordinador' || fieldName === 'coordinador_correo' || fieldName === 'coordinador_nombre') && values.value['coordinador']) {
+    return true;
+  }
   
   if (fieldName === 'cantidad_gafas' && values.value['utiliza_gafas'] === 'No') {
     return true;
@@ -83,16 +100,37 @@ async function handleFileUpload(event: Event, fieldName: string) {
   }
 }
 
+// Limpiar carrera y monitor al cambiar de facultad
 watch(() => values.value['facultad'], (newVal, oldVal) => {
   if (oldVal && newVal !== oldVal) {
     values.value['carrera'] = '';
     values.value['monitor_evaluado'] = '';
-    if (newVal !== 'Facultad de Ingeniería' && values.value['coordinador'] === 'Coordinador de Ingeniería') {
-      values.value['coordinador'] = '';
-    }
   }
 });
 
+// 3. Auto-completar coordinador al elegir carrera (SIN importar el rol)
+watch(() => values.value['carrera'], (newCarrera) => {
+  if (newCarrera) {
+    const coord = coordinadoresList.value.find(c => c.carreraCoordinada === newCarrera);
+    if (coord) {
+      values.value['coordinador'] = coord.nombre;
+      values.value['coordinador_correo'] = coord.email;
+      values.value['coordinador_nombre'] = coord.nombre;
+    } else {
+      // Si no hay coordinador para esa carrera, limpiamos el campo
+      values.value['coordinador'] = '';
+      values.value['coordinador_correo'] = '';
+      values.value['coordinador_nombre'] = '';
+    }
+  } else {
+    // Si borran la carrera, limpiamos los datos
+    values.value['coordinador'] = '';
+    values.value['coordinador_correo'] = '';
+    values.value['coordinador_nombre'] = '';
+  }
+});
+
+// Logica de las Gafas
 watch(() => values.value['utiliza_gafas'], (newVal) => {
   if (newVal === 'No') {
     values.value['cantidad_gafas'] = 'N/A';
@@ -199,7 +237,6 @@ function submit() {
 <style scoped>
 .dynamic-form { display: flex; flex-direction: column; gap: 2.5rem; width: 100%; }
 
-/* Tarjetas de las secciones */
 .form-group { 
   background: white; 
   border: 1px solid #e2e8f0; 
@@ -208,7 +245,6 @@ function submit() {
   box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.02); 
 }
 
-/* Titulo con detalle amarillo */
 .group-title { 
   margin-top: 0; 
   margin-bottom: 2rem; 
@@ -260,7 +296,6 @@ function submit() {
   letter-spacing: 0.5px;
 }
 
-/* Inputs Modernos */
 .input-control { 
   padding: 0.8rem 1rem; 
   border: 1.5px solid #cbd5e1; 
@@ -289,7 +324,6 @@ function submit() {
   box-shadow: 0 0 0 4px rgba(7, 78, 140, 0.1); 
 }
 
-/* Radios tipo Pildoras */
 .likert-list { display: flex; flex-direction: column; gap: 2rem; }
 .radio-group { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
 
@@ -314,10 +348,9 @@ function submit() {
 }
 
 .radio-label input[type="radio"] { 
-  display: none; /* Ocultamos el circulo por defecto */
+  display: none; 
 }
 
-/* File Upload Moderno */
 .file-input-hidden { display: none; }
 .file-dropzone {
   display: flex;
@@ -347,12 +380,10 @@ function submit() {
 .upload-status a { color: #16a34a; font-weight: bold; text-decoration: underline; }
 .check-icon { width: 1.2rem; height: 1.2rem; }
 
-/* Info Image */
 .info-block { margin-top: 1rem; width: 100%; }
 .info-label { font-weight: 600; color: #0f172a; margin-bottom: 1rem; font-size: 1rem; }
 .aranceles-img { max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
 
-/* Boton de enviar */
 .form-actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
 .btn-primary { 
   display: flex;

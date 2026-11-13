@@ -13,7 +13,8 @@ import authPlugin from './plugins/auth';
 import authRoutes from './routes/auth';
 import formsRoutes from './routes/forms';
 import requestsRoutes from './routes/requests';
-import notificationsRoutes from './routes/notifications'; // <-- NUEVO IMPORT
+import notificationsRoutes from './routes/notifications';
+import usersRoutes from './routes/users'; // <-- NUEVO IMPORT
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -89,9 +90,10 @@ async function main() {
   await app.register(authRoutes, { prefix: '/auth' });
   await app.register(formsRoutes, { prefix: '/forms' });
   await app.register(requestsRoutes, { prefix: '/requests' });
-  await app.register(notificationsRoutes, { prefix: '/notifications' }); // <-- NUEVO REGISTRO
+  await app.register(notificationsRoutes, { prefix: '/notifications' });
+  await app.register(usersRoutes, { prefix: '/users' }); // <-- NUEVO REGISTRO
 
-  await app.listen({ port, host: '::' }); // <-- Cambiado de '0.0.0.0' a '::'
+  await app.listen({ port, host: '::' });
   console.log(`Backend escuchando en el puerto ${port}`);
 }
 

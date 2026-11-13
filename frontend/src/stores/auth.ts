@@ -1,13 +1,16 @@
 import { defineStore } from 'pinia';
 import { authApi } from '../api/auth';
 
-export type Rol = 'solicitante' | 'interno' | 'admin';
+// Agregamos los nuevos roles
+export type Rol = 'docente' | 'coordinador' | 'interno' | 'admin' | 'solicitante';
 
 export interface User {
   id: string;
   email: string;
   nombre: string;
   rol: Rol;
+  carreraCoordinada?: string | null;
+  formularioAsignado?: string | null; // <-- NUEVO CAMPO
 }
 
 export const useAuthStore = defineStore('auth', {

@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { db } from '../db/client.js';
-import { users } from '../db/schema.js';
+import { db } from '../db/client';
+import { users } from '../db/schema';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -17,7 +17,7 @@ const registerSchema = z.object({
 });
 
 export default async function authRoutes(app: FastifyInstance) {
-  // POST /auth/register - publico, crea solicitantes
+  // POST /auth/register - publico, crea docentes
   app.post('/register', async (req, reply) => {
     const body = registerSchema.safeParse(req.body);
     if (!body.success) {
@@ -33,7 +33,12 @@ export default async function authRoutes(app: FastifyInstance) {
     const passwordHash = await bcrypt.hash(password, 10);
     const [created] = await db
       .insert(users)
-      .values({ email, nombre, passwordHash, rol: 'solicitante' })
+      .values({ 
+        email, 
+        nombre, 
+        passwordHash, 
+        rol: 'docente' // <-- Rol por defecto ahora es docente
+      })
       .returning();
 
     return {
@@ -75,6 +80,8 @@ export default async function authRoutes(app: FastifyInstance) {
         email: user.email,
         nombre: user.nombre,
         rol: user.rol,
+        carreraCoordinada: user.carreraCoordinada,
+        formularioAsignado: user.formularioAsignado, // <-- NUEVO CAMPO
       },
     };
   });
@@ -86,11 +93,14 @@ export default async function authRoutes(app: FastifyInstance) {
       .from(users)
       .where(eq(users.id, req.user.id));
     if (!user) return { error: 'Usuario no encontrado' };
+    
     return {
       id: user.id,
       email: user.email,
       nombre: user.nombre,
       rol: user.rol,
+      carreraCoordinada: user.carreraCoordinada,
+      formularioAsignado: user.formularioAsignado, // <-- NUEVO CAMPO
     };
   });
 }

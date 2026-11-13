@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { formsApi } from '../../api/forms';
 import { requestsApi } from '../../api/requests';
+import { api } from '../../api/client'; // <-- IMPORTANTE: Importamos api
 
 const formularios = ref<any[]>([]);
 const solicitudes = ref<any[]>([]);
@@ -46,6 +47,22 @@ function formatDate(dateString: string) {
     month: 'short',
     day: 'numeric'
   }).replace('.', ''); // Quita el punto del mes abreviado
+}
+
+// NUEVA FUNCION: Descargar PDF desde la lista rapida
+async function descargarPdfRapido(id: string) {
+  try {
+    const response = await api.get(`/requests/${id}/pdf`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Solicitud-${id.slice(0, 8)}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (error) {
+    alert('Error al descargar el PDF. Asegúrate de que esté aprobado.');
+  }
 }
 </script>
 
@@ -94,6 +111,17 @@ function formatDate(dateString: string) {
               </div>
               
               <div class="header-actions">
+                
+                <!-- NUEVO BOTON DE DESCARGA RAPIDA -->
+                <button 
+                  v-if="s.estado === 'aprobado' || s.estado === 'finalizado'"
+                  @click.stop="descargarPdfRapido(s.id)" 
+                  class="btn-quick-pdf" 
+                  title="Descargar PDF Oficial"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                </button>
+
                 <!-- Badge Mejorado con Iconos -->
                 <span class="status-badge" :class="s.estado">
                   <svg v-if="s.estado === 'finalizado'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="badge-icon"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
@@ -192,6 +220,11 @@ function formatDate(dateString: string) {
 .header-actions { display: flex; align-items: center; gap: 1.5rem; }
 .chevron { width: 1.5rem; height: 1.5rem; color: #94a3b8; transition: transform 0.3s; }
 .is-open .chevron { transform: rotate(180deg); color: #074E8C; }
+
+/* NUEVO: Boton de descarga rapida */
+.btn-quick-pdf { background: #eff6ff; border: 1px solid #bfdbfe; color: #074E8C; border-radius: 6px; padding: 0.4rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.btn-quick-pdf:hover { background: #dbeafe; border-color: #074E8C; transform: scale(1.05); }
+.btn-quick-pdf svg { width: 1.2rem; height: 1.2rem; }
 
 .accordion-body { background: white; }
 .body-content { padding: 1.5rem; }

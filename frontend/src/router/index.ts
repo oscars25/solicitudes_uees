@@ -17,19 +17,24 @@ const router = createRouter({
       meta: { roles: ['admin'] },
     },
     {
+      path: '/admin/usuarios', // <-- NUEVA RUTA AGREGADA
+      component: () => import('../views/admin/AdminUsers.vue'),
+      meta: { roles: ['admin'] },
+    },
+    {
       path: '/solicitudes',
       component: () => import('../views/solicitante/MisSolicitudes.vue'),
-      meta: { roles: ['solicitante'] },
+      meta: { roles: ['docente', 'coordinador'] },
     },
     {
       path: '/solicitudes/nueva/:slug',
       component: () => import('../views/solicitante/NuevaSolicitud.vue'),
-      meta: { roles: ['solicitante'] },
+      meta: { roles: ['docente', 'coordinador'] },
     },
     {
-      path: '/solicitudes/:id', // <-- NUEVA RUTA
+      path: '/solicitudes/:id',
       component: () => import('../views/solicitante/DetalleSolicitud.vue'),
-      meta: { roles: ['solicitante'] },
+      meta: { roles: ['docente', 'coordinador'] },
     },
     {
       path: '/interno',
@@ -53,6 +58,7 @@ router.beforeEach((to) => {
   if (!auth.isAuthenticated) return '/login';
 
   const roles = to.meta.roles as string[] | undefined;
+  
   if (roles && auth.rol && !roles.includes(auth.rol)) {
     if (auth.rol === 'admin') return '/admin';
     if (auth.rol === 'interno') return '/interno';

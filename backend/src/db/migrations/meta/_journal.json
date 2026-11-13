@@ -15,6 +15,20 @@
       "when": 1794418121733,
       "tag": "0001_calm_robbie_robertson",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794578318261,
+      "tag": "0002_mature_taskmaster",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794580742932,
+      "tag": "0003_purple_liz_osborn",
+      "breakpoints": true
     }
   ]
 }

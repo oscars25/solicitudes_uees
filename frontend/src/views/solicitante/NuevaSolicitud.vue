@@ -18,14 +18,17 @@ const error = ref('');
 const initialData = computed(() => {
   return {
     fecha_solicitud: new Date().toISOString().split('T')[0],
-    // OVAS
+    
+    // Docente
     docente: auth.user?.nombre || '',
     docente_resp_nombre: auth.user?.nombre || '',
     correo_docente: auth.user?.email || '',
-    coordinador: 'Coordinador de Ingeniería',
-    // Monitores
-    coordinador_nombre: auth.user?.nombre || '',
-    coordinador_correo: auth.user?.email || '',
+    
+    // Coordinador (Dejamos los campos vacios, el DynamicForm se encargara de llenarlos cuando elijan la carrera)
+    coordinador: '',
+    coordinador_correo: '',
+    coordinador_nombre: '',
+
     // RV / RA
     solicitante_nombre: auth.user?.nombre || '',
     solicitante_correo: auth.user?.email || ''
@@ -36,8 +39,6 @@ const disabledFields = [
   'docente', 
   'docente_resp_nombre', 
   'correo_docente', 
-  'coordinador_nombre', 
-  'coordinador_correo',
   'solicitante_nombre',
   'solicitante_correo'
 ];
@@ -81,6 +82,8 @@ async function onSubmit(payload: Record<string, any>) {
         :schema="form.schemaJson" 
         :initialData="initialData"
         :disabledFields="disabledFields"
+        :userRol="auth.rol || ''"
+        :userCarrera="auth.user?.carreraCoordinada || ''"
         @submit="onSubmit" 
       />
     </div>
@@ -103,7 +106,6 @@ async function onSubmit(payload: Record<string, any>) {
   padding: 2rem 1rem;
 }
 
-/* Boton de volver moderno */
 .back { 
   display: inline-flex; 
   align-items: center;
@@ -122,7 +124,6 @@ async function onSubmit(payload: Record<string, any>) {
   width: 100%;
 }
 
-/* Encabezado */
 .form-header {
   margin-bottom: 2rem;
   text-align: center;
